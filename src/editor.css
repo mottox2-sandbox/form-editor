@@ -16,4 +16,5 @@
 .editor-item {
   margin: 16px 0;
   display: flex;
+  align-items: flex-end;
 }

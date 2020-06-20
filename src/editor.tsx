@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "./editor.css";
 import { Input, Select, Button } from "antd";
-import { PlusCircleTwoTone } from "@ant-design/icons";
+import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
 
 const Option = Select.Option;
 
@@ -70,7 +70,7 @@ const TypeSelect: React.FC<{
   </Select>
 );
 
-const FormItem = ({ item, onChange }: { item: Item; onChange: any }) => {
+const FormItem = ({ item, onChange, onDelete }: { item: Item; onChange: any, onDelete: any }) => {
   return (
     <div className="editor-item">
       <div>
@@ -91,6 +91,9 @@ const FormItem = ({ item, onChange }: { item: Item; onChange: any }) => {
             onChange(item.id, { label: event.target.value });
           }}
         />
+      </div>
+      <div>
+        <Button onClick={() => onDelete(item.id)}><DeleteTwoTone /></Button>
       </div>
     </div>
   );
@@ -130,7 +133,12 @@ export const Editor = () => {
       }),
     });
   };
-  console.log(history)
+  const deleteItem = (itemId: string) => {
+    update({
+      ...state,
+      items: state.items.filter(item => item.id !== itemId)
+    })
+  }
 
   return (
     <div className="container">
@@ -139,6 +147,7 @@ export const Editor = () => {
           return (
             <FormItem
               onChange={perform(updateItem)}
+              onDelete={perform(deleteItem)}
               item={item}
               key={item.id}
             />
