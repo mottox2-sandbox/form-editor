@@ -12,3 +12,8 @@
 .editor {
   background: #fafafa;
 }
+
+.editor-item {
+  margin: 16px 0;
+  display: flex;
+}
