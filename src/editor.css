@@ -1,0 +1,14 @@
+.container {
+  display: flex;
+  height: 100%;
+}
+
+.editor, .preview {
+  width: 50%;
+  flex-grow: 1;
+  padding: 24px;
+}
+
+.editor {
+  background: #fafafa;
+}
