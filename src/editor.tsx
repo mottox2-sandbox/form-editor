@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import "./editor.css";
 import { Input, Select, Button } from "antd";
 import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
@@ -8,6 +8,7 @@ import {
   deleteItem as deleteItemCommand,
   updateItem as updateItemCommand,
 } from "./commands/index";
+import { firestore } from './firebase'
 
 const Option = Select.Option;
 
@@ -116,8 +117,6 @@ const FormItem = ({
   );
 };
 
-const history: any[] = [];
-
 export class EditorClass extends React.Component<{}, State> {
   manager: CommandManager;
 
@@ -132,6 +131,17 @@ export class EditorClass extends React.Component<{}, State> {
     );
   }
 
+  componentDidMount() {
+    firestore.doc('forms/6aB798wMx3sP02ZK26C9').collection('items').get()
+    .then((snapshot) => {
+      let items: Item[] = []
+      snapshot.docs.forEach(doc => {
+        items.push({id: doc.id, ...doc.data()} as Item)
+        this.setState({ items })
+      })
+    })
+  }
+
   render() {
     return <Editor state={this.state} manager={this.manager} />;
   }
@@ -141,13 +151,6 @@ export const Editor: React.FC<{
   state: State;
   manager: CommandManager;
 }> = ({ manager, state }) => {
-  const perform = (action: any): any => {
-    return (...args: any) => {
-      console.log("perform action:", action.name, args);
-      history.push(`[${action.name}]: ${JSON.stringify(args)}`);
-      action(...args);
-    };
-  };
   const createItem = () => {
     manager?.invoke(new createItemCommand());
   };
@@ -166,14 +169,14 @@ export const Editor: React.FC<{
         {state.items.map((item) => {
           return (
             <FormItem
-              onChange={perform(updateItem)}
-              onDelete={perform(deleteItem)}
+              onChange={updateItem}
+              onDelete={deleteItem}
               item={item}
               key={item.id}
             />
           );
         })}
-        <Button onClick={() => perform(createItem)()}>
+        <Button onClick={createItem}>
           <PlusCircleTwoTone />
           項目を追加
         </Button>
