@@ -32,8 +32,8 @@ type SelectItem = ItemBase & {
 
 type Item = TextItem | SelectItem;
 type State = {
-  items: Item[]
-}
+  items: Item[];
+};
 
 const editorState: State = {
   items: [
@@ -119,28 +119,28 @@ const FormItem = ({
 const history: any[] = [];
 
 export class EditorClass extends React.Component<{}, State> {
-  manager: CommandManager
+  manager: CommandManager;
 
   constructor(props: any) {
-    super(props)
+    super(props);
     this.state = {
-      items: []
-    }
+      items: [],
+    };
     this.manager = new CommandManager(
       (result: any) => this.setState(result.newState),
       () => this.state
-    )
+    );
   }
 
   render() {
-    return <Editor state={this.state} manager={this.manager} />
+    return <Editor state={this.state} manager={this.manager} />;
   }
 }
 
 export const Editor: React.FC<{
-  state: State
-  manager: CommandManager
-}> = ({manager, state}) => {
+  state: State;
+  manager: CommandManager;
+}> = ({ manager, state }) => {
   const perform = (action: any): any => {
     return (...args: any) => {
       console.log("perform action:", action.name, args);
@@ -152,12 +152,12 @@ export const Editor: React.FC<{
     manager?.invoke(new createItemCommand());
   };
   const updateItem = (itemId: string, content: any) => {
-    const cmd = new updateItemCommand(itemId, content)
-    manager?.invoke(cmd)
+    const cmd = new updateItemCommand(itemId, content);
+    manager?.invoke(cmd);
   };
   const deleteItem = (itemId: string) => {
-    const cmd = new deleteItemCommand(itemId)
-    manager?.invoke(cmd)
+    const cmd = new deleteItemCommand(itemId);
+    manager?.invoke(cmd);
   };
 
   return (
@@ -205,8 +205,31 @@ export const Editor: React.FC<{
           );
         })}
         <h1>History</h1>
+        <button
+          onClick={() => {
+            manager?.undo();
+          }}
+        >
+          undo
+        </button>
         {manager?.undoStack.map((stack, index) => {
-          return <div key={index}>{stack.constructor.name} {JSON.stringify(stack)}</div>
+          return (
+            <div key={index}>
+              {stack.constructor.name}
+              <br />
+              <span style={{ fontSize: 10 }}>{JSON.stringify(stack)}</span>
+            </div>
+          );
+        })}
+        redo
+        {manager?.redoStack.map((stack, index) => {
+          return (
+            <div key={index}>
+              {stack.constructor.name}
+              <br />
+              <span style={{ fontSize: 10 }}>{JSON.stringify(stack)}</span>
+            </div>
+          );
         })}
       </div>
     </div>

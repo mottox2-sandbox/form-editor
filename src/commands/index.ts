@@ -12,10 +12,12 @@ interface Command {
 }
 
 export class updateItem implements Command {
+  before: any
   constructor(public itemId: string, public content: any) {}
 
   async invoke(getState: GetState): Promise<ActionResult> {
     const state = getState();
+    this.before = state.items.find((item: any) => item.id === this.itemId);
     return {
       newState: {
         ...state,
@@ -26,8 +28,17 @@ export class updateItem implements Command {
       },
     };
   }
-  undo(getState: GetState): Promise<ActionResult> {
-    throw new Error("Method not implemented.");
+  async undo(getState: GetState): Promise<ActionResult> {
+    const state = getState();
+    return {
+      newState: {
+        ...state,
+        items: state.items.map((item: any) => {
+          if (item.id !== this.itemId) return item;
+          else return this.before;
+        }),
+      },
+    };
   }
   redo(getState: GetState): Promise<ActionResult> {
     throw new Error("Method not implemented.");
@@ -35,10 +46,13 @@ export class updateItem implements Command {
 }
 
 export class deleteItem implements Command {
+  item: any;
+
   constructor(public itemId: string) {}
 
   async invoke(getState: GetState): Promise<ActionResult> {
     const state = getState();
+    this.item = state.items.find((item: any) => item.id === this.itemId);
     return {
       newState: {
         ...state,
@@ -46,8 +60,14 @@ export class deleteItem implements Command {
       },
     };
   }
-  undo(getState: GetState): Promise<ActionResult> {
-    throw new Error("Method not implemented.");
+  async undo(getState: GetState): Promise<ActionResult> {
+    const state = getState();
+    return {
+      newState: {
+        ...state,
+        items: [...state.items, this.item],
+      },
+    };
   }
   redo(getState: GetState): Promise<ActionResult> {
     throw new Error("Method not implemented.");
@@ -55,6 +75,12 @@ export class deleteItem implements Command {
 }
 
 export class createItem implements Command {
+  itemId: string;
+
+  constructor() {
+    this.itemId = String(Number(new Date()));
+  }
+
   async invoke(getState: GetState) {
     const state = getState();
     return {
@@ -63,7 +89,7 @@ export class createItem implements Command {
         items: [
           ...state.items,
           {
-            id: String(Number(new Date())),
+            id: this.itemId,
             type: "text",
             label: "title",
             placeholder: "",
@@ -72,9 +98,13 @@ export class createItem implements Command {
       },
     };
   }
-  async undo() {
+  async undo(getState: GetState) {
+    const state = getState();
     return {
-      newState: {},
+      newState: {
+        ...state,
+        items: state.items.filter((item: any) => item.id !== this.itemId),
+      },
     };
   }
   async redo() {
