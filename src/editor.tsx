@@ -1,7 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./editor.css";
 import { Input, Select, Button } from "antd";
 import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
+import {
+  CommandManager,
+  createItem as createItemCommand,
+  deleteItem as deleteItemCommand,
+  updateItem as updateItemCommand,
+} from "./commands/index";
 
 const Option = Select.Option;
 
@@ -25,10 +31,11 @@ type SelectItem = ItemBase & {
 };
 
 type Item = TextItem | SelectItem;
+type State = {
+  items: Item[]
+}
 
-const editorState: {
-  items: Item[];
-} = {
+const editorState: State = {
   items: [
     {
       id: "a",
@@ -70,7 +77,15 @@ const TypeSelect: React.FC<{
   </Select>
 );
 
-const FormItem = ({ item, onChange, onDelete }: { item: Item; onChange: any, onDelete: any }) => {
+const FormItem = ({
+  item,
+  onChange,
+  onDelete,
+}: {
+  item: Item;
+  onChange: any;
+  onDelete: any;
+}) => {
   return (
     <div className="editor-item">
       <div>
@@ -93,52 +108,57 @@ const FormItem = ({ item, onChange, onDelete }: { item: Item; onChange: any, onD
         />
       </div>
       <div>
-        <Button onClick={() => onDelete(item.id)}><DeleteTwoTone /></Button>
+        <Button onClick={() => onDelete(item.id)}>
+          <DeleteTwoTone />
+        </Button>
       </div>
     </div>
   );
 };
 
-const history: any[] = []
+const history: any[] = [];
 
-export const Editor = () => {
-  const [state, update] = useState(editorState);
+export class EditorClass extends React.Component<{}, State> {
+  manager: CommandManager
+
+  constructor(props: any) {
+    super(props)
+    this.state = {
+      items: []
+    }
+    this.manager = new CommandManager(
+      (result: any) => this.setState(result.newState),
+      () => this.state
+    )
+  }
+
+  render() {
+    return <Editor state={this.state} manager={this.manager} />
+  }
+}
+
+export const Editor: React.FC<{
+  state: State
+  manager: CommandManager
+}> = ({manager, state}) => {
   const perform = (action: any): any => {
     return (...args: any) => {
       console.log("perform action:", action.name, args);
-      history.push( `[${action.name}]: ${JSON.stringify(args)}`)
+      history.push(`[${action.name}]: ${JSON.stringify(args)}`);
       action(...args);
     };
   };
   const createItem = () => {
-    update({
-      ...state,
-      items: [
-        ...state.items,
-        {
-          id: "a" + Number(new Date()),
-          type: "text",
-          label: "タイトル",
-          placeholder: "",
-        },
-      ],
-    });
+    manager?.invoke(new createItemCommand());
   };
   const updateItem = (itemId: string, content: any) => {
-    update({
-      ...state,
-      items: state.items.map((item) => {
-        if (item.id !== itemId) return item;
-        else return { ...item, ...content };
-      }),
-    });
+    const cmd = new updateItemCommand(itemId, content)
+    manager?.invoke(cmd)
   };
   const deleteItem = (itemId: string) => {
-    update({
-      ...state,
-      items: state.items.filter(item => item.id !== itemId)
-    })
-  }
+    const cmd = new deleteItemCommand(itemId)
+    manager?.invoke(cmd)
+  };
 
   return (
     <div className="container">
@@ -183,6 +203,10 @@ export const Editor = () => {
               <Input type={item.type} />
             </label>
           );
+        })}
+        <h1>History</h1>
+        {manager?.undoStack.map((stack, index) => {
+          return <div key={index}>{stack.constructor.name} {JSON.stringify(stack)}</div>
         })}
       </div>
     </div>

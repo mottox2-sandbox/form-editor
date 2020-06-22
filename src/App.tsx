@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Editor }  from './editor'
+import { Editor, EditorClass }  from './editor'
 
 import { firestore } from './firebase'
 
@@ -13,7 +13,7 @@ function App() {
 
   return (
     <div className="App">
-      <Editor/>
+      <EditorClass/>
     </div>
   );
 }
