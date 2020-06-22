@@ -1,16 +1,7 @@
-import React, { useEffect } from 'react';
-import { Editor, EditorClass }  from './editor'
-
-import { firestore } from './firebase'
+import React from 'react';
+import { EditorClass }  from './editor'
 
 function App() {
-  useEffect(() => {
-    firestore.doc('forms/6aB798wMx3sP02ZK26C9').get()
-    .then((snapshot) => {
-      console.log(snapshot, snapshot.data())
-    })
-  })
-
   return (
     <div className="App">
       <EditorClass/>

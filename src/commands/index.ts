@@ -1,3 +1,5 @@
+import { firestore } from "../firebase";
+
 type ActionResult = {
   newState: any;
 };
@@ -11,13 +13,30 @@ interface Command {
   redo(getState: GetState): Promise<ActionResult>;
 }
 
+const updateStoreItem = (itemId: string, item: any) => {
+  return firestore
+    .collection("forms/6aB798wMx3sP02ZK26C9/items")
+    .doc(itemId).set(item, {
+      merge: true
+    })
+}
+
+const deleteStoreItem = (itemId: string) => {
+  return firestore
+    .collection("forms/6aB798wMx3sP02ZK26C9/items")
+    .doc(itemId).delete()
+}
+
 export class updateItem implements Command {
-  before: any
+  before: any;
   constructor(public itemId: string, public content: any) {}
 
   async invoke(getState: GetState): Promise<ActionResult> {
     const state = getState();
     this.before = state.items.find((item: any) => item.id === this.itemId);
+
+    updateStoreItem(this.itemId, this.content)
+
     return {
       newState: {
         ...state,
@@ -30,6 +49,8 @@ export class updateItem implements Command {
   }
   async undo(getState: GetState): Promise<ActionResult> {
     const state = getState();
+
+    updateStoreItem(this.itemId, this.before)
     return {
       newState: {
         ...state,
@@ -53,6 +74,7 @@ export class deleteItem implements Command {
   async invoke(getState: GetState): Promise<ActionResult> {
     const state = getState();
     this.item = state.items.find((item: any) => item.id === this.itemId);
+    deleteStoreItem(this.itemId)
     return {
       newState: {
         ...state,
@@ -62,6 +84,7 @@ export class deleteItem implements Command {
   }
   async undo(getState: GetState): Promise<ActionResult> {
     const state = getState();
+    updateStoreItem(this.itemId, this.item)
     return {
       newState: {
         ...state,
@@ -83,23 +106,25 @@ export class createItem implements Command {
 
   async invoke(getState: GetState) {
     const state = getState();
+
+    const item = {
+      id: this.itemId,
+      type: "text",
+      label: "title",
+      placeholder: "",
+    };
+
+    updateStoreItem(this.itemId, item)
     return {
       newState: {
         ...state,
-        items: [
-          ...state.items,
-          {
-            id: this.itemId,
-            type: "text",
-            label: "title",
-            placeholder: "",
-          },
-        ],
+        items: [...state.items, item],
       },
     };
   }
   async undo(getState: GetState) {
     const state = getState();
+    deleteStoreItem(this.itemId)
     return {
       newState: {
         ...state,
