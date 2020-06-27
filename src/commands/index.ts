@@ -1,16 +1,12 @@
 import { firestore } from "../firebase";
 
-type ActionResult = {
-  newState: any;
-};
-
 type State = any;
 type GetState = () => State;
 
 interface Command {
-  invoke(getState: GetState): Promise<ActionResult>;
-  undo(getState: GetState): Promise<ActionResult>;
-  redo(getState: GetState): Promise<ActionResult>;
+  invoke(getState: GetState): Promise<void>;
+  undo(getState: GetState): Promise<void>;
+  redo(getState: GetState): Promise<void>;
 }
 
 const updateStoreItem = (itemId: string, item: any) => {
@@ -33,37 +29,16 @@ export class updateItem implements Command {
   before: any;
   constructor(public itemId: string, public content: any) {}
 
-  async invoke(getState: GetState): Promise<ActionResult> {
+  async invoke(getState: GetState) {
     const state = getState();
     this.before = state.items.find((item: any) => item.id === this.itemId);
 
-    updateStoreItem(this.itemId, this.content);
-
-    return {
-      newState: {
-        ...state,
-        items: state.items.map((item: any) => {
-          if (item.id !== this.itemId) return item;
-          else return { ...item, ...this.content };
-        }),
-      },
-    };
+    return updateStoreItem(this.itemId, this.content);
   }
-  async undo(getState: GetState): Promise<ActionResult> {
-    const state = getState();
-
-    updateStoreItem(this.itemId, this.before);
-    return {
-      newState: {
-        ...state,
-        items: state.items.map((item: any) => {
-          if (item.id !== this.itemId) return item;
-          else return this.before;
-        }),
-      },
-    };
+  async undo(getState: GetState) {
+    return updateStoreItem(this.itemId, this.before);
   }
-  redo(getState: GetState): Promise<ActionResult> {
+  async redo(getState: GetState) {
     throw new Error("Method not implemented.");
   }
 }
@@ -73,28 +48,15 @@ export class deleteItem implements Command {
 
   constructor(public itemId: string) {}
 
-  async invoke(getState: GetState): Promise<ActionResult> {
+  async invoke(getState: GetState) {
     const state = getState();
     this.item = state.items.find((item: any) => item.id === this.itemId);
     deleteStoreItem(this.itemId);
-    return {
-      newState: {
-        ...state,
-        items: state.items.filter((item: any) => item.id !== this.itemId),
-      },
-    };
   }
-  async undo(getState: GetState): Promise<ActionResult> {
-    const state = getState();
+  async undo(getState: GetState){
     updateStoreItem(this.itemId, this.item);
-    return {
-      newState: {
-        ...state,
-        items: [...state.items, this.item],
-      },
-    };
   }
-  redo(getState: GetState): Promise<ActionResult> {
+  async redo(getState: GetState) {
     throw new Error("Method not implemented.");
   }
 }
@@ -107,8 +69,6 @@ export class createItem implements Command {
   }
 
   async invoke(getState: GetState) {
-    const state = getState();
-
     const item = {
       id: this.itemId,
       type: "text",
@@ -117,45 +77,28 @@ export class createItem implements Command {
     };
 
     updateStoreItem(this.itemId, item);
-    return {
-      newState: {
-        ...state,
-        items: [...state.items, item],
-      },
-    };
   }
   async undo(getState: GetState) {
-    const state = getState();
     deleteStoreItem(this.itemId);
-    return {
-      newState: {
-        ...state,
-        items: state.items.filter((item: any) => item.id !== this.itemId),
-      },
-    };
   }
   async redo() {
-    return {
-      newState: {},
-    };
+    throw new Error("Method not implemented.");
   }
 }
 
 export class CommandManager {
   undoStack: Command[];
   redoStack: Command[];
-  updater: (newState: any) => void;
   getState: GetState;
 
-  constructor(updater: (args: any) => void, getState: GetState) {
+  constructor(getState: GetState) {
     this.undoStack = [];
     this.redoStack = [];
-    this.updater = updater;
     this.getState = getState;
   }
 
   async invoke(command: Command) {
-    this.updater(await command.invoke(this.getState));
+    await command.invoke(this.getState)
     this.undoStack.push(command);
     this.redoStack.length = 0;
     console.log(this);
@@ -164,7 +107,7 @@ export class CommandManager {
   async undo() {
     if (this.undoStack.length === 0) return;
     const command = this.undoStack.pop()!;
-    this.updater(await command.undo(this.getState));
+    await command.undo(this.getState)
     this.redoStack.push(command);
   }
 }

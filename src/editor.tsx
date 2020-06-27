@@ -104,15 +104,12 @@ export class EditorClass extends React.Component<{}, State> {
     this.state = {
       items: [],
     };
-    this.manager = new CommandManager(
-      (result: any) => this.setState(result.newState),
-      () => this.state
-    );
+    this.manager = new CommandManager(() => this.state);
   }
 
   componentDidMount() {
-    firestore.doc('forms/6aB798wMx3sP02ZK26C9').collection('items').get()
-    .then((snapshot) => {
+    firestore.doc('forms/6aB798wMx3sP02ZK26C9').collection('items')
+    .onSnapshot((snapshot) => {
       let items: Item[] = []
       snapshot.docs.forEach(doc => {
         items.push({id: doc.id, ...doc.data()} as Item)
