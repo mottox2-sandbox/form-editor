@@ -62,6 +62,7 @@ const FormItem = ({
   onDelete: any;
 }) => {
   const [label, setLabel] = useState(item.label)
+  const [editing, setEditing] = useState(false)
 
   return (
     <div className="editor-item">
@@ -81,9 +82,11 @@ const FormItem = ({
           value={label}
           onChange={(event) => {
             setLabel(event.target.value)
+            setEditing(true)
           }}
           onBlur={(event) => {
-            onChange(item.id, { label: event.target.value });
+            if (editing) onChange(item.id, { label: event.target.value });
+            setEditing(false)
           }}
         />
       </div>
