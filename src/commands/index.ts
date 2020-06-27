@@ -16,16 +16,18 @@ interface Command {
 const updateStoreItem = (itemId: string, item: any) => {
   return firestore
     .collection("forms/6aB798wMx3sP02ZK26C9/items")
-    .doc(itemId).set(item, {
-      merge: true
-    })
-}
+    .doc(itemId)
+    .set(item, {
+      merge: true,
+    });
+};
 
 const deleteStoreItem = (itemId: string) => {
   return firestore
     .collection("forms/6aB798wMx3sP02ZK26C9/items")
-    .doc(itemId).delete()
-}
+    .doc(itemId)
+    .delete();
+};
 
 export class updateItem implements Command {
   before: any;
@@ -35,7 +37,7 @@ export class updateItem implements Command {
     const state = getState();
     this.before = state.items.find((item: any) => item.id === this.itemId);
 
-    updateStoreItem(this.itemId, this.content)
+    updateStoreItem(this.itemId, this.content);
 
     return {
       newState: {
@@ -50,7 +52,7 @@ export class updateItem implements Command {
   async undo(getState: GetState): Promise<ActionResult> {
     const state = getState();
 
-    updateStoreItem(this.itemId, this.before)
+    updateStoreItem(this.itemId, this.before);
     return {
       newState: {
         ...state,
@@ -74,7 +76,7 @@ export class deleteItem implements Command {
   async invoke(getState: GetState): Promise<ActionResult> {
     const state = getState();
     this.item = state.items.find((item: any) => item.id === this.itemId);
-    deleteStoreItem(this.itemId)
+    deleteStoreItem(this.itemId);
     return {
       newState: {
         ...state,
@@ -84,7 +86,7 @@ export class deleteItem implements Command {
   }
   async undo(getState: GetState): Promise<ActionResult> {
     const state = getState();
-    updateStoreItem(this.itemId, this.item)
+    updateStoreItem(this.itemId, this.item);
     return {
       newState: {
         ...state,
@@ -114,7 +116,7 @@ export class createItem implements Command {
       placeholder: "",
     };
 
-    updateStoreItem(this.itemId, item)
+    updateStoreItem(this.itemId, item);
     return {
       newState: {
         ...state,
@@ -124,7 +126,7 @@ export class createItem implements Command {
   }
   async undo(getState: GetState) {
     const state = getState();
-    deleteStoreItem(this.itemId)
+    deleteStoreItem(this.itemId);
     return {
       newState: {
         ...state,
