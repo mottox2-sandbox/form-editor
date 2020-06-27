@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import "./editor.css";
 import { Input, Select, Button } from "antd";
 import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
@@ -7,6 +7,7 @@ import {
   createItem as createItemCommand,
   deleteItem as deleteItemCommand,
   updateItem as updateItemCommand,
+  Command
 } from "./commands/index";
 import { firestore } from './firebase'
 
@@ -52,7 +53,7 @@ const TypeSelect: React.FC<{
   </Select>
 );
 
-const FormItem = ({
+const FormItem = React.memo(({
   item,
   onChange,
   onDelete,
@@ -97,7 +98,7 @@ const FormItem = ({
       </div>
     </div>
   );
-};
+});
 
 export class EditorClass extends React.Component<{}, State> {
   manager: CommandManager;
@@ -126,25 +127,44 @@ export class EditorClass extends React.Component<{}, State> {
   }
 }
 
+const useSetStore = () => {
+  const invoke = (action: Command, getStore: any) => {
+    action.invoke(getStore)
+    console.log(action.record())
+  }
+
+  return { invoke }
+}
+
 export const Editor: React.FC<{
   state: State;
   manager: CommandManager;
 }> = ({ manager, state }) => {
+  const [histories, setHistories] = useState<any>([])
+  // const { invoke } = useSetStore()
   const createItem = () => {
-    manager?.invoke(new createItemCommand());
+    const cmd = new createItemCommand()
+    manager?.invoke(cmd);
+    // invoke(cmd, () => state)
+    setHistories((hist: any[]) => [...hist, cmd])
   };
-  const updateItem = (itemId: string, content: any) => {
+  const updateItem = useCallback((itemId: string, content: any) => {
     const cmd = new updateItemCommand(itemId, content);
+    // invoke(cmd, () => state)
     manager?.invoke(cmd);
-  };
-  const deleteItem = (itemId: string) => {
+    setHistories((hist: any[]) => [...hist, cmd])
+  }, [manager]);
+  const deleteItem = useCallback((itemId: string) => {
     const cmd = new deleteItemCommand(itemId);
+    // invoke(cmd, () => state)
     manager?.invoke(cmd);
-  };
+    setHistories((hist: any[]) => [...hist, cmd])
+  }, [manager]);
 
   return (
     <div className="container">
       <div className="editor">
+        {JSON.stringify(histories)}
         {state.items.map((item) => {
           return (
             <FormItem
@@ -203,7 +223,7 @@ export const Editor: React.FC<{
             </div>
           );
         })}
-        redo
+        <hr/>
         {manager?.redoStack.map((stack, index) => {
           return (
             <div key={index}>

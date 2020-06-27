@@ -3,10 +3,11 @@ import { firestore } from "../firebase";
 type State = any;
 type GetState = () => State;
 
-interface Command {
+export interface Command {
   invoke(getState: GetState): Promise<void>;
   undo(getState: GetState): Promise<void>;
   redo(getState: GetState): Promise<void>;
+  record(): any
 }
 
 const updateStoreItem = (itemId: string, item: any) => {
@@ -41,6 +42,12 @@ export class updateItem implements Command {
   async redo(getState: GetState) {
     throw new Error("Method not implemented.");
   }
+  record() {
+    return {
+      name: 'updateItem',
+      payload: this.before,
+    }
+  }
 }
 
 export class deleteItem implements Command {
@@ -58,6 +65,12 @@ export class deleteItem implements Command {
   }
   async redo(getState: GetState) {
     throw new Error("Method not implemented.");
+  }
+  record() {
+    return {
+      name: 'deleteItem',
+      payload: this.item,
+    }
   }
 }
 
@@ -83,6 +96,12 @@ export class createItem implements Command {
   }
   async redo() {
     throw new Error("Method not implemented.");
+  }
+  record() {
+    return {
+      name: 'createItem',
+      payload: this.itemId
+    }
   }
 }
 
