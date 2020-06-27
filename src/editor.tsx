@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import "./editor.css";
 import { Input, Select, Button } from "antd";
 import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
@@ -36,32 +36,6 @@ type State = {
   items: Item[];
 };
 
-const editorState: State = {
-  items: [
-    {
-      id: "a",
-      type: "text",
-      label: "タイトル",
-      placeholder: "",
-    },
-    {
-      id: "b",
-      type: "select",
-      label: "選択項目",
-      options: [
-        {
-          label: "選択肢1",
-          value: "選択肢1",
-        },
-        {
-          label: "選択肢2",
-          value: "選択肢2",
-        },
-      ],
-    },
-  ],
-};
-
 const TypeSelect: React.FC<{
   onChange: (newType: string) => void;
   value: string;
@@ -87,6 +61,8 @@ const FormItem = ({
   onChange: any;
   onDelete: any;
 }) => {
+  const [label, setLabel] = useState(item.label)
+
   return (
     <div className="editor-item">
       <div>
@@ -102,8 +78,11 @@ const FormItem = ({
         <div className="editor-item-label">ラベル</div>
         <Input
           type="text"
-          value={item.label}
+          value={label}
           onChange={(event) => {
+            setLabel(event.target.value)
+          }}
+          onBlur={(event) => {
             onChange(item.id, { label: event.target.value });
           }}
         />
