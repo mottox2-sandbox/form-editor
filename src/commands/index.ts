@@ -1,14 +1,11 @@
 import { firestore } from "../firebase";
 import { Item } from '../editor'
 
-type State = any;
-type GetState = () => State;
-
-export interface Command {
-  invoke(): Promise<void>;
-  undo(args?: any): Promise<void>;
+export interface Command<T = any> {
+  name: string
+  invoke(...args: any): Promise<T>;
+  undo(payload: T): Promise<void>;
   redo(): Promise<void>;
-  record(): any
 }
 
 const updateStoreItem = (itemId: string, item: any) => {
@@ -27,89 +24,72 @@ const deleteStoreItem = (itemId: string) => {
     .delete();
 };
 
-export class updateItem implements Command {
-  before: any;
-  constructor(public item: Item, public content: any) {}
-
-  async invoke() {
-    return updateStoreItem(this.item.id, this.content);
-  }
-  async undo({ id, before }: any) {
-    return updateStoreItem(id, before);
-  }
-  async redo() {
-    throw new Error("Method not implemented.");
-  }
-  record() {
-    return {
-      name: 'updateItem',
-      payload: {
-        id: this.item.id,
-        before: this.item,
-      }
-    }
-  }
+type UpdateItemPayload = {
+  id: string,
+  before: Item
 }
+export class updateItem implements Command<UpdateItemPayload> {
+  name = 'updateItem'
 
-export class deleteItem implements Command {
-  before: any;
-
-  constructor(public item: Item) {}
-
-  async invoke() {
-    this.before = this.item
-    deleteStoreItem(this.item.id);
+  async invoke(item: Item, content: Partial<Item>) {
+    updateStoreItem(item.id, content);
+    return { id: item.id, before: item }
   }
-  async undo({ id, before }: any){
+  async undo({ id, before }: UpdateItemPayload) {
     updateStoreItem(id, before);
   }
   async redo() {
     throw new Error("Method not implemented.");
   }
-  record() {
+}
+
+type DeleteItemPayload = {
+  id: string
+  before: Item
+}
+
+export class deleteItem implements Command<DeleteItemPayload> {
+  name = 'deleteItem'
+
+  async invoke(item: Item) {
+    deleteStoreItem(item.id);
     return {
-      name: 'deleteItem',
-      payload: {
-        id: this.item.id,
-        before: this.before,
-      }
+      id: item.id, before: item
     }
+  }
+  async undo({ id, before }: DeleteItemPayload){
+    updateStoreItem(id, before);
+  }
+  async redo() {
+    throw new Error("Method not implemented.");
   }
 }
 
-export class createItem implements Command {
-  itemId: string;
-
-  constructor() {
-    this.itemId = String(Number(new Date()));
-  }
+export class createItem implements Command<string> {
+  name = 'createItem'
 
   async invoke() {
+    const itemId = String(Number(new Date()));
     const item = {
-      id: this.itemId,
+      id: itemId,
       type: "text",
       label: "title",
       placeholder: "",
     };
 
-    updateStoreItem(this.itemId, item);
+    updateStoreItem(itemId, item);
+    return itemId
   }
-  async undo(payload: any) {
+  async undo(payload: string) {
     deleteStoreItem(payload);
   }
   async redo() {
     throw new Error("Method not implemented.");
   }
-  record() {
-    return {
-      name: 'createItem',
-      payload: this.itemId
-    }
-  }
 }
 
 export const undoCommands: Record<string, Command> = {
   'createItem': new createItem(),
-  'deleteItem': new deleteItem({} as any),
-  'updateItem': new updateItem({} as any, {})
+  'deleteItem': new deleteItem(),
+  'updateItem': new updateItem()
 }

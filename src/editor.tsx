@@ -170,9 +170,10 @@ export class EditorClass extends React.Component<{}, State> {
 
 const useSetStore = () => {
   const [histories, setHistories] = useState<any>([]);
-  const invoke = (action: Command) => {
-    action.invoke();
-    setHistories((hist: any[]) => [...hist, action.record()]);
+  const invoke = async (action: Command, ...args: any) => {
+    const name = action.name
+    const payload = await action.invoke(...args);
+    setHistories((hist: any[]) => [ ...hist, { name, payload, }, ]);
   };
 
   const undo = () => {
@@ -194,12 +195,12 @@ export const Editor: React.FC<{
     invoke(cmd);
   };
   const updateItem = useCallback((item: Item, content: any) => {
-    const cmd = new updateItemCommand(item, content);
-    invoke(cmd);
+    const cmd = new updateItemCommand();
+    invoke(cmd, item, content);
   }, []);
   const deleteItem = useCallback((item: Item) => {
-    const cmd = new deleteItemCommand(item);
-    invoke(cmd);
+    const cmd = new deleteItemCommand();
+    invoke(cmd, item);
   }, []);
 
   return (
