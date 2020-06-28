@@ -5,9 +5,9 @@ type State = any;
 type GetState = () => State;
 
 export interface Command {
-  invoke(getState: GetState): Promise<void>;
+  invoke(): Promise<void>;
   undo(args?: any): Promise<void>;
-  redo(getState: GetState): Promise<void>;
+  redo(): Promise<void>;
   record(): any
 }
 
@@ -31,13 +31,13 @@ export class updateItem implements Command {
   before: any;
   constructor(public item: Item, public content: any) {}
 
-  async invoke(getState: GetState) {
+  async invoke() {
     return updateStoreItem(this.item.id, this.content);
   }
   async undo({ id, before }: any) {
     return updateStoreItem(id, before);
   }
-  async redo(getState: GetState) {
+  async redo() {
     throw new Error("Method not implemented.");
   }
   record() {
@@ -56,14 +56,14 @@ export class deleteItem implements Command {
 
   constructor(public item: Item) {}
 
-  async invoke(getState: GetState) {
+  async invoke() {
     this.before = this.item
     deleteStoreItem(this.item.id);
   }
   async undo({ id, before }: any){
     updateStoreItem(id, before);
   }
-  async redo(getState: GetState) {
+  async redo() {
     throw new Error("Method not implemented.");
   }
   record() {
@@ -84,7 +84,7 @@ export class createItem implements Command {
     this.itemId = String(Number(new Date()));
   }
 
-  async invoke(getState: GetState) {
+  async invoke() {
     const item = {
       id: this.itemId,
       type: "text",
