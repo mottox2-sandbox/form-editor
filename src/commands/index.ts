@@ -5,7 +5,7 @@ type GetState = () => State;
 
 export interface Command {
   invoke(getState: GetState): Promise<void>;
-  undo(getState: GetState): Promise<void>;
+  undo(args?: any): Promise<void>;
   redo(getState: GetState): Promise<void>;
   record(): any
 }
@@ -32,11 +32,12 @@ export class updateItem implements Command {
 
   async invoke(getState: GetState) {
     const state = getState();
+    console.log(state)
     this.before = state.items.find((item: any) => item.id === this.itemId);
 
     return updateStoreItem(this.itemId, this.content);
   }
-  async undo(getState: GetState) {
+  async undo() {
     return updateStoreItem(this.itemId, this.before);
   }
   async redo(getState: GetState) {
@@ -60,7 +61,7 @@ export class deleteItem implements Command {
     this.item = state.items.find((item: any) => item.id === this.itemId);
     deleteStoreItem(this.itemId);
   }
-  async undo(getState: GetState){
+  async undo(){
     updateStoreItem(this.itemId, this.item);
   }
   async redo(getState: GetState) {
@@ -91,8 +92,8 @@ export class createItem implements Command {
 
     updateStoreItem(this.itemId, item);
   }
-  async undo(getState: GetState) {
-    deleteStoreItem(this.itemId);
+  async undo(payload: any) {
+    deleteStoreItem(payload);
   }
   async redo() {
     throw new Error("Method not implemented.");
@@ -126,7 +127,11 @@ export class CommandManager {
   async undo() {
     if (this.undoStack.length === 0) return;
     const command = this.undoStack.pop()!;
-    await command.undo(this.getState)
+    await command.undo()
     this.redoStack.push(command);
   }
+}
+
+export const undoCommands: Record<string, Command> = {
+  'createItem': new createItem()
 }

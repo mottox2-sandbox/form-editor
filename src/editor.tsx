@@ -8,6 +8,7 @@ import {
   deleteItem as deleteItemCommand,
   updateItem as updateItemCommand,
   Command,
+  undoCommands
 } from "./commands/index";
 import { firestore } from "./firebase";
 
@@ -102,7 +103,6 @@ const FormItem = memo(
   }
 );
 
-
 const PreviewItem: React.FC<{
   item: Item;
 }> = memo(({ item }) => {
@@ -162,41 +162,50 @@ export class EditorClass extends React.Component<{}, State> {
 }
 
 const useSetStore = () => {
+  const [histories, setHistories] = useState<any>([]);
   const invoke = (action: Command, getStore: any) => {
+    console.log(action)
     action.invoke(getStore);
-    console.log(action.record());
+    setHistories((hist: any[]) => [...hist, action.record()]);
+    // console.log(action.record());
   };
 
-  return { invoke };
+  const undo = () => {
+    const history = histories.pop()
+    if (!history) return
+    const cmd = undoCommands[history.name]
+    if (cmd) cmd.undo(history.payload)
+  }
+
+  return { histories, invoke, undo };
 };
 
 export const Editor: React.FC<{
   state: State;
   manager: CommandManager;
 }> = ({ manager, state }) => {
-  const [histories, setHistories] = useState<any>([]);
-  const { invoke } = useSetStore();
+  const { invoke, histories, undo } = useSetStore();
   const createItem = () => {
     const cmd = new createItemCommand();
-    manager?.invoke(cmd);
-    // invoke(cmd, () => state)
-    setHistories((hist: any[]) => [...hist, cmd]);
+    // manager?.invoke(cmd);
+    invoke(cmd, () => state)
+    // setHistories((hist: any[]) => [...hist, cmd]);
   };
   const updateItem = useCallback(
     (itemId: string, content: any) => {
       const cmd = new updateItemCommand(itemId, content);
-      // invoke(cmd, () => state)
-      manager?.invoke(cmd);
-      setHistories((hist: any[]) => [...hist, cmd]);
+      invoke(cmd, () => state)
+      // manager?.invoke(cmd);
+      // setHistories((hist: any[]) => [...hist, cmd]);
     },
     [manager]
   );
   const deleteItem = useCallback(
     (itemId: string) => {
       const cmd = new deleteItemCommand(itemId);
-      // invoke(cmd, () => state)
-      manager?.invoke(cmd);
-      setHistories((hist: any[]) => [...hist, cmd]);
+      invoke(cmd, () => state)
+      // manager?.invoke(cmd);
+      // setHistories((hist: any[]) => [...hist, cmd]);
     },
     [manager]
   );
@@ -205,6 +214,7 @@ export const Editor: React.FC<{
     <div className="container">
       <div className="editor">
         {JSON.stringify(histories)}
+        <button onClick={undo}>Undo</button>
         {state.items.map((item) => {
           return (
             <FormItem
