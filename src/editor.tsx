@@ -1,13 +1,17 @@
-import React, { useState, useCallback, memo } from "react";
+import React, { useState, useCallback, memo, useEffect } from "react";
 import "./editor.css";
 import { Input, Select, Button } from "antd";
-import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
 import {
-  CommandManager,
+  PlusCircleTwoTone,
+  DeleteTwoTone,
+  ArrowLeftOutlined,
+} from "@ant-design/icons";
+import {
   createItem as createItemCommand,
   deleteItem as deleteItemCommand,
   updateItem as updateItemCommand,
   Command,
+  undoCommands,
 } from "./commands/index";
 import { firestore } from "./firebase";
 
@@ -32,7 +36,7 @@ type SelectItem = ItemBase & {
   }[];
 };
 
-type Item = TextItem | SelectItem;
+export type Item = TextItem | SelectItem;
 type State = {
   items: Item[];
 };
@@ -66,6 +70,10 @@ const FormItem = memo(
     const [label, setLabel] = useState(item.label);
     const [editing, setEditing] = useState(false);
 
+    useEffect(() => {
+      setLabel(item.label);
+    }, [item]);
+
     return (
       <div className="editor-item">
         <div>
@@ -73,7 +81,7 @@ const FormItem = memo(
           <TypeSelect
             value={item.type}
             onChange={(newType: string) => {
-              onChange(item.id, { type: newType });
+              onChange(item, { type: newType });
             }}
           />
         </div>
@@ -87,13 +95,13 @@ const FormItem = memo(
               setEditing(true);
             }}
             onBlur={(event) => {
-              if (editing) onChange(item.id, { label: event.target.value });
+              if (editing) onChange(item, { label: event.target.value });
               setEditing(false);
             }}
           />
         </div>
         <div>
-          <Button onClick={() => onDelete(item.id)}>
+          <Button onClick={() => onDelete(item)}>
             <DeleteTwoTone />
           </Button>
         </div>
@@ -101,7 +109,6 @@ const FormItem = memo(
     );
   }
 );
-
 
 const PreviewItem: React.FC<{
   item: Item;
@@ -133,14 +140,11 @@ const PreviewItem: React.FC<{
 });
 
 export class EditorClass extends React.Component<{}, State> {
-  manager: CommandManager;
-
   constructor(props: any) {
     super(props);
     this.state = {
       items: [],
     };
-    this.manager = new CommandManager(() => this.state);
   }
 
   componentDidMount() {
@@ -149,6 +153,9 @@ export class EditorClass extends React.Component<{}, State> {
       .collection("items")
       .onSnapshot((snapshot) => {
         let items: Item[] = [];
+        snapshot.docChanges().forEach((change) => {
+          console.log(change.type, change.doc.data());
+        });
         snapshot.docs.forEach((doc) => {
           items.push({ id: doc.id, ...doc.data() } as Item);
           this.setState({ items });
@@ -157,54 +164,48 @@ export class EditorClass extends React.Component<{}, State> {
   }
 
   render() {
-    return <Editor state={this.state} manager={this.manager} />;
+    return <Editor state={this.state} />;
   }
 }
 
 const useSetStore = () => {
-  const invoke = (action: Command, getStore: any) => {
-    action.invoke(getStore);
-    console.log(action.record());
+  const [histories, setHistories] = useState<any>([]);
+  const invoke = async (action: Command, ...args: any) => {
+    const name = action.name
+    const payload = await action.invoke(...args);
+    setHistories((hist: any[]) => [ ...hist, { name, payload, }, ]);
   };
 
-  return { invoke };
+  const undo = () => {
+    const history = histories.pop();
+    if (!history) return;
+    const cmd = undoCommands[history.name];
+    if (cmd) cmd.undo(history.payload);
+  };
+
+  return { histories, invoke, undo };
 };
 
 export const Editor: React.FC<{
   state: State;
-  manager: CommandManager;
-}> = ({ manager, state }) => {
-  const [histories, setHistories] = useState<any>([]);
-  const { invoke } = useSetStore();
+}> = ({ state }) => {
+  const { invoke, histories, undo } = useSetStore();
   const createItem = () => {
     const cmd = new createItemCommand();
-    manager?.invoke(cmd);
-    // invoke(cmd, () => state)
-    setHistories((hist: any[]) => [...hist, cmd]);
+    invoke(cmd);
   };
-  const updateItem = useCallback(
-    (itemId: string, content: any) => {
-      const cmd = new updateItemCommand(itemId, content);
-      // invoke(cmd, () => state)
-      manager?.invoke(cmd);
-      setHistories((hist: any[]) => [...hist, cmd]);
-    },
-    [manager]
-  );
-  const deleteItem = useCallback(
-    (itemId: string) => {
-      const cmd = new deleteItemCommand(itemId);
-      // invoke(cmd, () => state)
-      manager?.invoke(cmd);
-      setHistories((hist: any[]) => [...hist, cmd]);
-    },
-    [manager]
-  );
+  const updateItem = useCallback((item: Item, content: any) => {
+    const cmd = new updateItemCommand();
+    invoke(cmd, item, content);
+  }, []);
+  const deleteItem = useCallback((item: Item) => {
+    const cmd = new deleteItemCommand();
+    invoke(cmd, item);
+  }, []);
 
   return (
     <div className="container">
       <div className="editor">
-        {JSON.stringify(histories)}
         {state.items.map((item) => {
           return (
             <FormItem
@@ -220,37 +221,29 @@ export const Editor: React.FC<{
           項目を追加
         </Button>
       </div>
-      <div className="preview">
-        {state.items.map((item) => {
-          return <PreviewItem item={item} key={item.id} />
-        })}
-        <h1>History</h1>
-        <button
-          onClick={() => {
-            manager?.undo();
-          }}
-        >
-          undo
-        </button>
-        {manager?.undoStack.map((stack, index) => {
-          return (
-            <div key={index}>
-              {stack.constructor.name}
-              <br />
-              <span style={{ fontSize: 10 }}>{JSON.stringify(stack)}</span>
-            </div>
-          );
-        })}
-        <hr />
-        {manager?.redoStack.map((stack, index) => {
-          return (
-            <div key={index}>
-              {stack.constructor.name}
-              <br />
-              <span style={{ fontSize: 10 }}>{JSON.stringify(stack)}</span>
-            </div>
-          );
-        })}
+      <div className="right">
+        <div className="preview">
+          {state.items.map((item) => {
+            return <PreviewItem item={item} key={item.id} />;
+          })}
+        </div>
+        <div className="histories">
+          <div>
+            <Button onClick={undo}>
+              <ArrowLeftOutlined />
+              Undo
+            </Button>
+          </div>
+          {histories.map((history: any, index: number) => {
+            return (
+              <div key={index}>
+                <b>{history.name}</b>
+                <br />
+                <small>{JSON.stringify(history.payload)}</small>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

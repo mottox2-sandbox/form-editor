@@ -1,13 +1,11 @@
 import { firestore } from "../firebase";
+import { Item } from '../editor'
 
-type State = any;
-type GetState = () => State;
-
-export interface Command {
-  invoke(getState: GetState): Promise<void>;
-  undo(getState: GetState): Promise<void>;
-  redo(getState: GetState): Promise<void>;
-  record(): any
+export interface Command<T = any> {
+  name: string
+  invoke(...args: any): Promise<T>;
+  undo(payload: T): Promise<void>;
+  redo(): Promise<void>;
 }
 
 const updateStoreItem = (itemId: string, item: any) => {
@@ -26,107 +24,72 @@ const deleteStoreItem = (itemId: string) => {
     .delete();
 };
 
-export class updateItem implements Command {
-  before: any;
-  constructor(public itemId: string, public content: any) {}
+type UpdateItemPayload = {
+  id: string,
+  before: Item
+}
+export class updateItem implements Command<UpdateItemPayload> {
+  name = 'updateItem'
 
-  async invoke(getState: GetState) {
-    const state = getState();
-    this.before = state.items.find((item: any) => item.id === this.itemId);
-
-    return updateStoreItem(this.itemId, this.content);
+  async invoke(item: Item, content: Partial<Item>) {
+    updateStoreItem(item.id, content);
+    return { id: item.id, before: item }
   }
-  async undo(getState: GetState) {
-    return updateStoreItem(this.itemId, this.before);
+  async undo({ id, before }: UpdateItemPayload) {
+    updateStoreItem(id, before);
   }
-  async redo(getState: GetState) {
+  async redo() {
     throw new Error("Method not implemented.");
-  }
-  record() {
-    return {
-      name: 'updateItem',
-      payload: this.before,
-    }
   }
 }
 
-export class deleteItem implements Command {
-  item: any;
+type DeleteItemPayload = {
+  id: string
+  before: Item
+}
 
-  constructor(public itemId: string) {}
+export class deleteItem implements Command<DeleteItemPayload> {
+  name = 'deleteItem'
 
-  async invoke(getState: GetState) {
-    const state = getState();
-    this.item = state.items.find((item: any) => item.id === this.itemId);
-    deleteStoreItem(this.itemId);
-  }
-  async undo(getState: GetState){
-    updateStoreItem(this.itemId, this.item);
-  }
-  async redo(getState: GetState) {
-    throw new Error("Method not implemented.");
-  }
-  record() {
+  async invoke(item: Item) {
+    deleteStoreItem(item.id);
     return {
-      name: 'deleteItem',
-      payload: this.item,
+      id: item.id, before: item
     }
+  }
+  async undo({ id, before }: DeleteItemPayload){
+    updateStoreItem(id, before);
+  }
+  async redo() {
+    throw new Error("Method not implemented.");
   }
 }
 
-export class createItem implements Command {
-  itemId: string;
+export class createItem implements Command<string> {
+  name = 'createItem'
 
-  constructor() {
-    this.itemId = String(Number(new Date()));
-  }
-
-  async invoke(getState: GetState) {
+  async invoke() {
+    const itemId = String(Number(new Date()));
     const item = {
-      id: this.itemId,
+      id: itemId,
       type: "text",
       label: "title",
       placeholder: "",
     };
 
-    updateStoreItem(this.itemId, item);
+    updateStoreItem(itemId, item);
+    return itemId
   }
-  async undo(getState: GetState) {
-    deleteStoreItem(this.itemId);
+  async undo(payload: string) {
+    deleteStoreItem(payload);
   }
   async redo() {
     throw new Error("Method not implemented.");
   }
-  record() {
-    return {
-      name: 'createItem',
-      payload: this.itemId
-    }
-  }
 }
 
-export class CommandManager {
-  undoStack: Command[];
-  redoStack: Command[];
-  getState: GetState;
-
-  constructor(getState: GetState) {
-    this.undoStack = [];
-    this.redoStack = [];
-    this.getState = getState;
-  }
-
-  async invoke(command: Command) {
-    await command.invoke(this.getState)
-    this.undoStack.push(command);
-    this.redoStack.length = 0;
-    console.log(this);
-  }
-
-  async undo() {
-    if (this.undoStack.length === 0) return;
-    const command = this.undoStack.pop()!;
-    await command.undo(this.getState)
-    this.redoStack.push(command);
-  }
+export const undoCommands: Record<string, Command> = {
+  'createItem': new createItem(),
+  'deleteItem': new deleteItem(),
+  'updateItem': new updateItem()
 }
