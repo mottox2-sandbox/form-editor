@@ -3,12 +3,11 @@ import "./editor.css";
 import { Input, Select, Button } from "antd";
 import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
 import {
-  CommandManager,
   createItem as createItemCommand,
   deleteItem as deleteItemCommand,
   updateItem as updateItemCommand,
   Command,
-  undoCommands
+  undoCommands,
 } from "./commands/index";
 import { firestore } from "./firebase";
 
@@ -68,8 +67,8 @@ const FormItem = memo(
     const [editing, setEditing] = useState(false);
 
     useEffect(() => {
-      setLabel(item.label)
-    }, [item])
+      setLabel(item.label);
+    }, [item]);
 
     return (
       <div className="editor-item">
@@ -137,14 +136,11 @@ const PreviewItem: React.FC<{
 });
 
 export class EditorClass extends React.Component<{}, State> {
-  manager: CommandManager;
-
   constructor(props: any) {
     super(props);
     this.state = {
       items: [],
     };
-    this.manager = new CommandManager(() => this.state);
   }
 
   componentDidMount() {
@@ -153,9 +149,9 @@ export class EditorClass extends React.Component<{}, State> {
       .collection("items")
       .onSnapshot((snapshot) => {
         let items: Item[] = [];
-        snapshot.docChanges().forEach(change => {
-          console.log(change.type, change.doc.data())
-        })
+        snapshot.docChanges().forEach((change) => {
+          console.log(change.type, change.doc.data());
+        });
         snapshot.docs.forEach((doc) => {
           items.push({ id: doc.id, ...doc.data() } as Item);
           this.setState({ items });
@@ -164,58 +160,45 @@ export class EditorClass extends React.Component<{}, State> {
   }
 
   render() {
-    return <Editor state={this.state} manager={this.manager} />;
+    return <Editor state={this.state} />;
   }
 }
 
 const useSetStore = () => {
   const [histories, setHistories] = useState<any>([]);
   const invoke = (action: Command, getStore: any) => {
-    console.log(action)
+    console.log(action);
     action.invoke(getStore);
     setHistories((hist: any[]) => [...hist, action.record()]);
     // console.log(action.record());
   };
 
   const undo = () => {
-    const history = histories.pop()
-    if (!history) return
-    const cmd = undoCommands[history.name]
-    if (cmd) cmd.undo(history.payload)
-  }
+    const history = histories.pop();
+    if (!history) return;
+    const cmd = undoCommands[history.name];
+    if (cmd) cmd.undo(history.payload);
+  };
 
   return { histories, invoke, undo };
 };
 
 export const Editor: React.FC<{
   state: State;
-  manager: CommandManager;
-}> = ({ manager, state }) => {
+}> = ({ state }) => {
   const { invoke, histories, undo } = useSetStore();
   const createItem = () => {
     const cmd = new createItemCommand();
-    // manager?.invoke(cmd);
-    invoke(cmd, () => state)
-    // setHistories((hist: any[]) => [...hist, cmd]);
+    invoke(cmd, () => state);
   };
-  const updateItem = useCallback(
-    (item: Item, content: any) => {
-      const cmd = new updateItemCommand(item, content);
-      invoke(cmd, () => state)
-      // manager?.invoke(cmd);
-      // setHistories((hist: any[]) => [...hist, cmd]);
-    },
-    [manager]
-  );
-  const deleteItem = useCallback(
-    (item: Item) => {
-      const cmd = new deleteItemCommand(item);
-      invoke(cmd, () => state)
-      // manager?.invoke(cmd);
-      // setHistories((hist: any[]) => [...hist, cmd]);
-    },
-    [manager]
-  );
+  const updateItem = useCallback((item: Item, content: any) => {
+    const cmd = new updateItemCommand(item, content);
+    invoke(cmd, () => state);
+  }, []);
+  const deleteItem = useCallback((item: Item) => {
+    const cmd = new deleteItemCommand(item);
+    invoke(cmd, () => state);
+  }, []);
 
   return (
     <div className="container">
@@ -239,34 +222,7 @@ export const Editor: React.FC<{
       </div>
       <div className="preview">
         {state.items.map((item) => {
-          return <PreviewItem item={item} key={item.id} />
-        })}
-        <h1>History</h1>
-        <button
-          onClick={() => {
-            manager?.undo();
-          }}
-        >
-          undo
-        </button>
-        {manager?.undoStack.map((stack, index) => {
-          return (
-            <div key={index}>
-              {stack.constructor.name}
-              <br />
-              <span style={{ fontSize: 10 }}>{JSON.stringify(stack)}</span>
-            </div>
-          );
-        })}
-        <hr />
-        {manager?.redoStack.map((stack, index) => {
-          return (
-            <div key={index}>
-              {stack.constructor.name}
-              <br />
-              <span style={{ fontSize: 10 }}>{JSON.stringify(stack)}</span>
-            </div>
-          );
+          return <PreviewItem item={item} key={item.id} />;
         })}
       </div>
     </div>

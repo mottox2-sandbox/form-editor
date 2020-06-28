@@ -108,32 +108,6 @@ export class createItem implements Command {
   }
 }
 
-export class CommandManager {
-  undoStack: Command[];
-  redoStack: Command[];
-  getState: GetState;
-
-  constructor(getState: GetState) {
-    this.undoStack = [];
-    this.redoStack = [];
-    this.getState = getState;
-  }
-
-  async invoke(command: Command) {
-    await command.invoke(this.getState)
-    this.undoStack.push(command);
-    this.redoStack.length = 0;
-    console.log(this);
-  }
-
-  async undo() {
-    if (this.undoStack.length === 0) return;
-    const command = this.undoStack.pop()!;
-    await command.undo()
-    this.redoStack.push(command);
-  }
-}
-
 export const undoCommands: Record<string, Command> = {
   'createItem': new createItem(),
   'deleteItem': new deleteItem({} as any),
