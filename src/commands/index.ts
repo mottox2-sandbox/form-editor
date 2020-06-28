@@ -1,4 +1,5 @@
 import { firestore } from "../firebase";
+import { Item } from '../editor'
 
 type State = any;
 type GetState = () => State;
@@ -28,17 +29,13 @@ const deleteStoreItem = (itemId: string) => {
 
 export class updateItem implements Command {
   before: any;
-  constructor(public itemId: string, public content: any) {}
+  constructor(public item: Item, public content: any) {}
 
   async invoke(getState: GetState) {
-    const state = getState();
-    console.log(state)
-    this.before = state.items.find((item: any) => item.id === this.itemId);
-
-    return updateStoreItem(this.itemId, this.content);
+    return updateStoreItem(this.item.id, this.content);
   }
-  async undo() {
-    return updateStoreItem(this.itemId, this.before);
+  async undo({ id, before }: any) {
+    return updateStoreItem(id, before);
   }
   async redo(getState: GetState) {
     throw new Error("Method not implemented.");
@@ -46,23 +43,25 @@ export class updateItem implements Command {
   record() {
     return {
       name: 'updateItem',
-      payload: this.before,
+      payload: {
+        id: this.item.id,
+        before: this.item,
+      }
     }
   }
 }
 
 export class deleteItem implements Command {
-  item: any;
+  before: any;
 
-  constructor(public itemId: string) {}
+  constructor(public item: Item) {}
 
   async invoke(getState: GetState) {
-    const state = getState();
-    this.item = state.items.find((item: any) => item.id === this.itemId);
-    deleteStoreItem(this.itemId);
+    this.before = this.item
+    deleteStoreItem(this.item.id);
   }
-  async undo(){
-    updateStoreItem(this.itemId, this.item);
+  async undo({ id, before }: any){
+    updateStoreItem(id, before);
   }
   async redo(getState: GetState) {
     throw new Error("Method not implemented.");
@@ -70,7 +69,10 @@ export class deleteItem implements Command {
   record() {
     return {
       name: 'deleteItem',
-      payload: this.item,
+      payload: {
+        id: this.item.id,
+        before: this.before,
+      }
     }
   }
 }
@@ -133,5 +135,7 @@ export class CommandManager {
 }
 
 export const undoCommands: Record<string, Command> = {
-  'createItem': new createItem()
+  'createItem': new createItem(),
+  'deleteItem': new deleteItem({} as any),
+  'updateItem': new updateItem({} as any, {})
 }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, memo } from "react";
+import React, { useState, useCallback, memo, useEffect } from "react";
 import "./editor.css";
 import { Input, Select, Button } from "antd";
 import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
@@ -33,7 +33,7 @@ type SelectItem = ItemBase & {
   }[];
 };
 
-type Item = TextItem | SelectItem;
+export type Item = TextItem | SelectItem;
 type State = {
   items: Item[];
 };
@@ -67,6 +67,10 @@ const FormItem = memo(
     const [label, setLabel] = useState(item.label);
     const [editing, setEditing] = useState(false);
 
+    useEffect(() => {
+      setLabel(item.label)
+    }, [item])
+
     return (
       <div className="editor-item">
         <div>
@@ -74,7 +78,7 @@ const FormItem = memo(
           <TypeSelect
             value={item.type}
             onChange={(newType: string) => {
-              onChange(item.id, { type: newType });
+              onChange(item, { type: newType });
             }}
           />
         </div>
@@ -88,13 +92,13 @@ const FormItem = memo(
               setEditing(true);
             }}
             onBlur={(event) => {
-              if (editing) onChange(item.id, { label: event.target.value });
+              if (editing) onChange(item, { label: event.target.value });
               setEditing(false);
             }}
           />
         </div>
         <div>
-          <Button onClick={() => onDelete(item.id)}>
+          <Button onClick={() => onDelete(item)}>
             <DeleteTwoTone />
           </Button>
         </div>
@@ -149,6 +153,9 @@ export class EditorClass extends React.Component<{}, State> {
       .collection("items")
       .onSnapshot((snapshot) => {
         let items: Item[] = [];
+        snapshot.docChanges().forEach(change => {
+          console.log(change.type, change.doc.data())
+        })
         snapshot.docs.forEach((doc) => {
           items.push({ id: doc.id, ...doc.data() } as Item);
           this.setState({ items });
@@ -192,8 +199,8 @@ export const Editor: React.FC<{
     // setHistories((hist: any[]) => [...hist, cmd]);
   };
   const updateItem = useCallback(
-    (itemId: string, content: any) => {
-      const cmd = new updateItemCommand(itemId, content);
+    (item: Item, content: any) => {
+      const cmd = new updateItemCommand(item, content);
       invoke(cmd, () => state)
       // manager?.invoke(cmd);
       // setHistories((hist: any[]) => [...hist, cmd]);
@@ -201,8 +208,8 @@ export const Editor: React.FC<{
     [manager]
   );
   const deleteItem = useCallback(
-    (itemId: string) => {
-      const cmd = new deleteItemCommand(itemId);
+    (item: Item) => {
+      const cmd = new deleteItemCommand(item);
       invoke(cmd, () => state)
       // manager?.invoke(cmd);
       // setHistories((hist: any[]) => [...hist, cmd]);
