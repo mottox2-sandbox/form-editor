@@ -1,7 +1,11 @@
 import React, { useState, useCallback, memo, useEffect } from "react";
 import "./editor.css";
 import { Input, Select, Button } from "antd";
-import { PlusCircleTwoTone, DeleteTwoTone } from "@ant-design/icons";
+import {
+  PlusCircleTwoTone,
+  DeleteTwoTone,
+  ArrowLeftOutlined,
+} from "@ant-design/icons";
 import {
   createItem as createItemCommand,
   deleteItem as deleteItemCommand,
@@ -167,10 +171,8 @@ export class EditorClass extends React.Component<{}, State> {
 const useSetStore = () => {
   const [histories, setHistories] = useState<any>([]);
   const invoke = (action: Command) => {
-    console.log(action);
     action.invoke();
     setHistories((hist: any[]) => [...hist, action.record()]);
-    // console.log(action.record());
   };
 
   const undo = () => {
@@ -194,17 +196,15 @@ export const Editor: React.FC<{
   const updateItem = useCallback((item: Item, content: any) => {
     const cmd = new updateItemCommand(item, content);
     invoke(cmd);
-  }, [invoke]);
+  }, []);
   const deleteItem = useCallback((item: Item) => {
     const cmd = new deleteItemCommand(item);
     invoke(cmd);
-  }, [invoke]);
+  }, []);
 
   return (
     <div className="container">
       <div className="editor">
-        {JSON.stringify(histories)}
-        <button onClick={undo}>Undo</button>
         {state.items.map((item) => {
           return (
             <FormItem
@@ -220,10 +220,29 @@ export const Editor: React.FC<{
           項目を追加
         </Button>
       </div>
-      <div className="preview">
-        {state.items.map((item) => {
-          return <PreviewItem item={item} key={item.id} />;
-        })}
+      <div className="right">
+        <div className="preview">
+          {state.items.map((item) => {
+            return <PreviewItem item={item} key={item.id} />;
+          })}
+        </div>
+        <div className="histories">
+          <div>
+            <Button onClick={undo}>
+              <ArrowLeftOutlined />
+              Undo
+            </Button>
+          </div>
+          {histories.map((history: any, index: number) => {
+            return (
+              <div key={index}>
+                <b>{history.name}</b>
+                <br />
+                <small>{JSON.stringify(history.payload)}</small>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

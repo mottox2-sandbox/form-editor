@@ -3,18 +3,30 @@
   height: 100%;
 }
 
-.editor, .preview {
+.editor, .right {
   width: 50%;
   flex-grow: 1;
-  padding: 24px;
 }
 
 .editor {
   background: #fafafa;
+  padding: 24px;
 }
 
 .editor-item {
   margin: 16px 0;
   display: flex;
   align-items: flex-end;
+}
+
+.right {
+  display: flex;
+  flex-direction: column;
+}
+
+.preview, .histories {
+  padding: 24px;
+  flex: 1;
+  height: 50%;
+  overflow-y: auto;
 }
