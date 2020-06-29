@@ -14,6 +14,8 @@ import {
   undoCommands,
 } from "./commands/index";
 import { firestore } from "./firebase";
+import { useDispatch, useSelector } from "react-redux";
+import { historyActions } from "./store";
 
 const Option = Select.Option;
 
@@ -178,28 +180,39 @@ export class EditorClass extends React.Component<{}, State> {
   }
 }
 
-const useSetStore = () => {
-  const [histories, setHistories] = useState<any>([]);
+const useStoreWriter = () => {
+  const dispatch = useDispatch()
   const invoke = async (action: Command, ...args: any) => {
     const name = action.name;
     const payload = await action.invoke(...args);
-    setHistories((hist: any[]) => [...hist, { name, payload }]);
+    dispatch(historyActions.pushHistory({
+      name, payload
+    }))
   };
 
+  return { invoke }
+}
+
+const useStoreHistory = () => {
+  const histories: any[] = useSelector((state: any) => state.history.histories)
+  const dispatch = useDispatch()
+
   const undo = () => {
-    const history = histories.pop();
+    const history = histories[histories.length - 1]
+    dispatch(historyActions.popHistory())
     if (!history) return;
     const cmd = undoCommands[history.name];
     if (cmd) cmd.undo(history.payload);
   };
 
-  return { histories, invoke, undo };
+  return { histories, undo };
 };
 
 export const Editor: React.FC<{
   state: State;
 }> = ({ state }) => {
-  const { invoke, histories, undo } = useSetStore();
+  const { invoke } = useStoreWriter()
+  const { histories, undo } = useStoreHistory();
   const createItem = () => {
     const cmd = new createItemCommand();
     invoke(cmd);
