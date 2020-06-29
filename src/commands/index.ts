@@ -1,39 +1,50 @@
+import firebase from 'firebase/app'
+import 'firebase/firestore'
+
 import { firestore } from "../firebase";
-import { Item } from '../editor'
+import { Item } from "../editor";
 
 export interface Command<T = any> {
-  name: string
+  name: string;
   invoke(...args: any): Promise<T>;
   undo(payload: T): Promise<void>;
   redo(): Promise<void>;
 }
 
+const formDoc = firestore.doc("forms/6aB798wMx3sP02ZK26C9");
+const mergeOption = { merge: true };
+
 const updateStoreItem = (itemId: string, item: any) => {
-  return firestore
-    .collection("forms/6aB798wMx3sP02ZK26C9/items")
-    .doc(itemId)
-    .set(item, {
-      merge: true,
-    });
+  return formDoc.collection("items").doc(itemId).set(item, mergeOption);
 };
 
+// indexを追加
+const pushItemToForm = (itemId: string) => {
+  return formDoc.update({
+    itemIds: firebase.firestore.FieldValue.arrayUnion(itemId)
+  })
+}
+
+const removeItemFromForm = (itemId: string) => {
+  return formDoc.update({
+    itemIds: firebase.firestore.FieldValue.arrayRemove(itemId)
+  })
+}
+
 const deleteStoreItem = (itemId: string) => {
-  return firestore
-    .collection("forms/6aB798wMx3sP02ZK26C9/items")
-    .doc(itemId)
-    .delete();
+  return formDoc.collection("items").doc(itemId).delete();
 };
 
 type UpdateItemPayload = {
-  id: string,
-  before: Item
-}
+  id: string;
+  before: Item;
+};
 export class updateItem implements Command<UpdateItemPayload> {
-  name = 'updateItem'
+  name = "updateItem";
 
   async invoke(item: Item, content: Partial<Item>) {
     updateStoreItem(item.id, content);
-    return { id: item.id, before: item }
+    return { id: item.id, before: item };
   }
   async undo({ id, before }: UpdateItemPayload) {
     updateStoreItem(id, before);
@@ -44,21 +55,24 @@ export class updateItem implements Command<UpdateItemPayload> {
 }
 
 type DeleteItemPayload = {
-  id: string
-  before: Item
-}
+  id: string;
+  before: Item;
+};
 
 export class deleteItem implements Command<DeleteItemPayload> {
-  name = 'deleteItem'
+  name = "deleteItem";
 
   async invoke(item: Item) {
     deleteStoreItem(item.id);
+    removeItemFromForm(item.id)
     return {
-      id: item.id, before: item
-    }
+      id: item.id,
+      before: item,
+    };
   }
-  async undo({ id, before }: DeleteItemPayload){
+  async undo({ id, before }: DeleteItemPayload) {
     updateStoreItem(id, before);
+    pushItemToForm(id)
   }
   async redo() {
     throw new Error("Method not implemented.");
@@ -66,7 +80,7 @@ export class deleteItem implements Command<DeleteItemPayload> {
 }
 
 export class createItem implements Command<string> {
-  name = 'createItem'
+  name = "createItem";
 
   async invoke() {
     const itemId = String(Number(new Date()));
@@ -78,10 +92,12 @@ export class createItem implements Command<string> {
     };
 
     updateStoreItem(itemId, item);
-    return itemId
+    pushItemToForm(itemId)
+    return itemId;
   }
   async undo(payload: string) {
     deleteStoreItem(payload);
+    removeItemFromForm(payload)
   }
   async redo() {
     throw new Error("Method not implemented.");
@@ -89,7 +105,7 @@ export class createItem implements Command<string> {
 }
 
 export const undoCommands: Record<string, Command> = {
-  'createItem': new createItem(),
-  'deleteItem': new deleteItem(),
-  'updateItem': new updateItem()
-}
+  createItem: new createItem(),
+  deleteItem: new deleteItem(),
+  updateItem: new updateItem(),
+};

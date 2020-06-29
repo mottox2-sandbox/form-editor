@@ -36,9 +36,15 @@ type SelectItem = ItemBase & {
   }[];
 };
 
+type Form = {
+  name: string;
+  itemIds: string[];
+};
+
 export type Item = TextItem | SelectItem;
 type State = {
-  items: Item[];
+  items: Record<string, Item>;
+  form: Form;
 };
 
 const TypeSelect: React.FC<{
@@ -143,24 +149,28 @@ export class EditorClass extends React.Component<{}, State> {
   constructor(props: any) {
     super(props);
     this.state = {
-      items: [],
+      items: {},
+      form: {
+        name: "",
+        itemIds: [],
+      },
     };
   }
 
   componentDidMount() {
-    firestore
-      .doc("forms/6aB798wMx3sP02ZK26C9")
-      .collection("items")
-      .onSnapshot((snapshot) => {
-        let items: Item[] = [];
-        snapshot.docChanges().forEach((change) => {
-          console.log(change.type, change.doc.data());
-        });
-        snapshot.docs.forEach((doc) => {
-          items.push({ id: doc.id, ...doc.data() } as Item);
-          this.setState({ items });
+    const doc = firestore.doc("forms/6aB798wMx3sP02ZK26C9");
+    doc.onSnapshot((snapshot) => {
+      const form = snapshot.data() as Form;
+      this.setState({ form });
+    });
+    doc.collection("items").onSnapshot((snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const item = { id: change.doc.id, ...change.doc.data() } as Item;
+        this.setState({
+          items: { ...this.state.items, [change.doc.id]: item },
         });
       });
+    });
   }
 
   render() {
@@ -171,9 +181,9 @@ export class EditorClass extends React.Component<{}, State> {
 const useSetStore = () => {
   const [histories, setHistories] = useState<any>([]);
   const invoke = async (action: Command, ...args: any) => {
-    const name = action.name
+    const name = action.name;
     const payload = await action.invoke(...args);
-    setHistories((hist: any[]) => [ ...hist, { name, payload, }, ]);
+    setHistories((hist: any[]) => [...hist, { name, payload }]);
   };
 
   const undo = () => {
@@ -206,13 +216,16 @@ export const Editor: React.FC<{
   return (
     <div className="container">
       <div className="editor">
-        {state.items.map((item) => {
+        <div>{(state.form.itemIds || []).join(", ")}</div>
+        {state.form.itemIds.map((itemId) => {
+          const item = state.items[itemId]
+          if (!item) return null
           return (
             <FormItem
               onChange={updateItem}
               onDelete={deleteItem}
-              item={item}
-              key={item.id}
+              item={state.items[itemId]}
+              key={itemId}
             />
           );
         })}
@@ -223,8 +236,10 @@ export const Editor: React.FC<{
       </div>
       <div className="right">
         <div className="preview">
-          {state.items.map((item) => {
-            return <PreviewItem item={item} key={item.id} />;
+          {state.form.itemIds.map((itemId) => {
+            const item = state.items[itemId]
+            if (!item) return null
+            return <PreviewItem item={item} key={itemId} />;
           })}
         </div>
         <div className="histories">
