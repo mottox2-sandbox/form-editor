@@ -8,7 +8,7 @@ export interface Command<T = any> {
   name: string;
   invoke(...args: any): Promise<T>;
   undo(payload: T): Promise<void>;
-  redo(): Promise<void>;
+  redo(payload: T): Promise<void>;
 }
 
 const formDoc = firestore.doc("forms/6aB798wMx3sP02ZK26C9");
@@ -38,19 +38,20 @@ const deleteStoreItem = (itemId: string) => {
 type UpdateItemPayload = {
   id: string;
   before: Item;
+  after: Partial<Item>
 };
 export class updateItem implements Command<UpdateItemPayload> {
   name = "updateItem";
 
   async invoke(item: Item, content: Partial<Item>) {
     updateStoreItem(item.id, content);
-    return { id: item.id, before: item };
+    return { id: item.id, before: item, after: content };
   }
   async undo({ id, before }: UpdateItemPayload) {
     updateStoreItem(id, before);
   }
-  async redo() {
-    throw new Error("Method not implemented.");
+  async redo({ id, after }: UpdateItemPayload) {
+    updateStoreItem(id, after);
   }
 }
 
@@ -74,23 +75,26 @@ export class deleteItem implements Command<DeleteItemPayload> {
     updateStoreItem(id, before);
     pushItemToForm(id)
   }
-  async redo() {
-    throw new Error("Method not implemented.");
+  async redo({ id, before }: DeleteItemPayload) {
+    deleteStoreItem(id);
+    removeItemFromForm(id)
   }
 }
+
+const initialItem = (id: string) => ({
+  id,
+  type: "text",
+  label: "title",
+  placeholder: "",
+});
+
 
 export class createItem implements Command<string> {
   name = "createItem";
 
   async invoke() {
     const itemId = String(Number(new Date()));
-    const item = {
-      id: itemId,
-      type: "text",
-      label: "title",
-      placeholder: "",
-    };
-
+    const item = initialItem(itemId)
     updateStoreItem(itemId, item);
     pushItemToForm(itemId)
     return itemId;
@@ -99,8 +103,10 @@ export class createItem implements Command<string> {
     deleteStoreItem(payload);
     removeItemFromForm(payload)
   }
-  async redo() {
-    throw new Error("Method not implemented.");
+  async redo(payload: string) {
+    const item = initialItem(payload)
+    updateStoreItem(payload, item);
+    pushItemToForm(payload)
   }
 }
 

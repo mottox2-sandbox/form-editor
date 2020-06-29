@@ -5,6 +5,7 @@ import {
   PlusCircleTwoTone,
   DeleteTwoTone,
   ArrowLeftOutlined,
+  ArrowRightOutlined,
 } from "@ant-design/icons";
 import {
   createItem as createItemCommand,
@@ -14,6 +15,8 @@ import {
   undoCommands,
 } from "./commands/index";
 import { firestore } from "./firebase";
+import { useDispatch, useSelector } from "react-redux";
+import { historyActions, RootState, StoreHistory } from "./store";
 
 const Option = Select.Option;
 
@@ -178,28 +181,88 @@ export class EditorClass extends React.Component<{}, State> {
   }
 }
 
-const useSetStore = () => {
-  const [histories, setHistories] = useState<any>([]);
-  const invoke = async (action: Command, ...args: any) => {
+const useStoreWriter = () => {
+  const dispatch = useDispatch();
+  const invoke = useCallback(async (action: Command, ...args: any) => {
     const name = action.name;
     const payload = await action.invoke(...args);
-    setHistories((hist: any[]) => [...hist, { name, payload }]);
-  };
+    dispatch(
+      historyActions.stack({
+        name,
+        payload,
+      })
+    );
+  }, [dispatch]);
+
+  return { invoke };
+};
+
+const useStoreHistory = () => {
+  const { undoStack, redoStack } = useSelector(
+    (state: RootState) => state.history
+  );
+  const dispatch = useDispatch();
 
   const undo = () => {
-    const history = histories.pop();
+    const history = undoStack[undoStack.length - 1];
+    dispatch(historyActions.undo());
     if (!history) return;
     const cmd = undoCommands[history.name];
     if (cmd) cmd.undo(history.payload);
   };
 
-  return { histories, invoke, undo };
+  const redo = () => {
+    const history = redoStack[redoStack.length - 1];
+    dispatch(historyActions.redo());
+    if (!history) return;
+    const cmd = undoCommands[history.name];
+    if (cmd) cmd.redo(history.payload);
+  };
+
+  return { undoStack, redoStack, undo, redo };
+};
+
+const HistoryStack: React.FC<{
+  history: StoreHistory;
+}> = ({ history }) => {
+  return (
+    <div>
+      <b>{history.name}</b>
+      <br />
+      <small>{JSON.stringify(history.payload)}</small>
+    </div>
+  );
+};
+
+const HistoryUI = () => {
+  const { undoStack, redoStack, undo, redo } = useStoreHistory();
+  return (
+    <div className="histories">
+      <div>
+        <Button onClick={undo}>
+          <ArrowLeftOutlined />
+          Undo
+        </Button>
+        <Button onClick={redo}>
+          <ArrowRightOutlined />
+          Redo
+        </Button>
+      </div>
+      {undoStack.map((history, index) => (
+        <HistoryStack key={index} history={history} />
+      ))}
+      <div className='history-current'/>
+      {[...redoStack].reverse().map((history, index) => (
+        <HistoryStack key={index} history={history} />
+      ))}
+    </div>
+  );
 };
 
 export const Editor: React.FC<{
   state: State;
 }> = ({ state }) => {
-  const { invoke, histories, undo } = useSetStore();
+  const { invoke } = useStoreWriter();
   const createItem = () => {
     const cmd = new createItemCommand();
     invoke(cmd);
@@ -207,19 +270,19 @@ export const Editor: React.FC<{
   const updateItem = useCallback((item: Item, content: any) => {
     const cmd = new updateItemCommand();
     invoke(cmd, item, content);
-  }, []);
+  }, [invoke]);
   const deleteItem = useCallback((item: Item) => {
     const cmd = new deleteItemCommand();
     invoke(cmd, item);
-  }, []);
+  }, [invoke]);
 
   return (
     <div className="container">
       <div className="editor">
         <div>{(state.form.itemIds || []).join(", ")}</div>
         {state.form.itemIds.map((itemId) => {
-          const item = state.items[itemId]
-          if (!item) return null
+          const item = state.items[itemId];
+          if (!item) return null;
           return (
             <FormItem
               onChange={updateItem}
@@ -237,28 +300,12 @@ export const Editor: React.FC<{
       <div className="right">
         <div className="preview">
           {state.form.itemIds.map((itemId) => {
-            const item = state.items[itemId]
-            if (!item) return null
+            const item = state.items[itemId];
+            if (!item) return null;
             return <PreviewItem item={item} key={itemId} />;
           })}
         </div>
-        <div className="histories">
-          <div>
-            <Button onClick={undo}>
-              <ArrowLeftOutlined />
-              Undo
-            </Button>
-          </div>
-          {histories.map((history: any, index: number) => {
-            return (
-              <div key={index}>
-                <b>{history.name}</b>
-                <br />
-                <small>{JSON.stringify(history.payload)}</small>
-              </div>
-            );
-          })}
-        </div>
+        <HistoryUI />
       </div>
     </div>
   );
