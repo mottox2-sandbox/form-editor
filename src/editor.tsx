@@ -5,6 +5,7 @@ import {
   PlusCircleTwoTone,
   DeleteTwoTone,
   ArrowLeftOutlined,
+  ArrowRightOutlined,
 } from "@ant-design/icons";
 import {
   createItem as createItemCommand,
@@ -15,7 +16,7 @@ import {
 } from "./commands/index";
 import { firestore } from "./firebase";
 import { useDispatch, useSelector } from "react-redux";
-import { historyActions } from "./store";
+import { historyActions, RootState, StoreHistory } from "./store";
 
 const Option = Select.Option;
 
@@ -197,22 +198,45 @@ const useStoreWriter = () => {
 };
 
 const useStoreHistory = () => {
-  const histories: any[] = useSelector((state: any) => state.history.histories);
+  const { undoStack, redoStack } = useSelector(
+    (state: RootState) => state.history
+  );
   const dispatch = useDispatch();
 
   const undo = () => {
-    const history = histories[histories.length - 1];
+    const history = undoStack[undoStack.length - 1];
     dispatch(historyActions.popHistory());
     if (!history) return;
     const cmd = undoCommands[history.name];
     if (cmd) cmd.undo(history.payload);
   };
 
-  return { histories, undo };
+  const redo = () => {
+    const history = redoStack[redoStack.length - 1];
+    dispatch(historyActions.redo());
+    if (!history) return;
+    const cmd = undoCommands[history.name];
+    if (cmd) cmd.redo(history.payload);
+  };
+
+  return { undoStack, redoStack, undo, redo };
+};
+
+const HistoryStack: React.FC<{
+  history: StoreHistory;
+}> = ({ history }) => {
+  return (
+    <div>
+      <b>{history.name}</b>
+      <br />
+      <small>{JSON.stringify(history.payload)}</small>
+    </div>
+  );
 };
 
 const HistoryUI = () => {
-  const { histories, undo } = useStoreHistory();
+  const { undoStack, redoStack, undo, redo } = useStoreHistory();
+  console.log(undoStack, redoStack, redoStack.length)
   return (
     <div className="histories">
       <div>
@@ -220,16 +244,18 @@ const HistoryUI = () => {
           <ArrowLeftOutlined />
           Undo
         </Button>
+        <Button onClick={redo}>
+          <ArrowRightOutlined />
+          Redo
+        </Button>
       </div>
-      {histories.map((history: any, index: number) => {
-        return (
-          <div key={index}>
-            <b>{history.name}</b>
-            <br />
-            <small>{JSON.stringify(history.payload)}</small>
-          </div>
-        );
-      })}
+      {undoStack.map((history, index) => (
+        <HistoryStack key={index} history={history} />
+      ))}
+      <div className='history-current'/>
+      {[...redoStack].reverse().map((history, index) => (
+        <HistoryStack key={index} history={history} />
+      ))}
     </div>
   );
 };

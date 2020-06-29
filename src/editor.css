@@ -30,3 +30,8 @@
   height: 50%;
   overflow-y: auto;
 }
+
+.history-current {
+  height: 1px;
+  background-color: rgb(24, 144, 255);
+}
