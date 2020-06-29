@@ -181,25 +181,28 @@ export class EditorClass extends React.Component<{}, State> {
 }
 
 const useStoreWriter = () => {
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
   const invoke = async (action: Command, ...args: any) => {
     const name = action.name;
     const payload = await action.invoke(...args);
-    dispatch(historyActions.pushHistory({
-      name, payload
-    }))
+    dispatch(
+      historyActions.pushHistory({
+        name,
+        payload,
+      })
+    );
   };
 
-  return { invoke }
-}
+  return { invoke };
+};
 
 const useStoreHistory = () => {
-  const histories: any[] = useSelector((state: any) => state.history.histories)
-  const dispatch = useDispatch()
+  const histories: any[] = useSelector((state: any) => state.history.histories);
+  const dispatch = useDispatch();
 
   const undo = () => {
-    const history = histories[histories.length - 1]
-    dispatch(historyActions.popHistory())
+    const history = histories[histories.length - 1];
+    dispatch(historyActions.popHistory());
     if (!history) return;
     const cmd = undoCommands[history.name];
     if (cmd) cmd.undo(history.payload);
@@ -208,11 +211,33 @@ const useStoreHistory = () => {
   return { histories, undo };
 };
 
+const HistoryUI = () => {
+  const { histories, undo } = useStoreHistory();
+  return (
+    <div className="histories">
+      <div>
+        <Button onClick={undo}>
+          <ArrowLeftOutlined />
+          Undo
+        </Button>
+      </div>
+      {histories.map((history: any, index: number) => {
+        return (
+          <div key={index}>
+            <b>{history.name}</b>
+            <br />
+            <small>{JSON.stringify(history.payload)}</small>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
 export const Editor: React.FC<{
   state: State;
 }> = ({ state }) => {
-  const { invoke } = useStoreWriter()
-  const { histories, undo } = useStoreHistory();
+  const { invoke } = useStoreWriter();
   const createItem = () => {
     const cmd = new createItemCommand();
     invoke(cmd);
@@ -231,8 +256,8 @@ export const Editor: React.FC<{
       <div className="editor">
         <div>{(state.form.itemIds || []).join(", ")}</div>
         {state.form.itemIds.map((itemId) => {
-          const item = state.items[itemId]
-          if (!item) return null
+          const item = state.items[itemId];
+          if (!item) return null;
           return (
             <FormItem
               onChange={updateItem}
@@ -250,28 +275,12 @@ export const Editor: React.FC<{
       <div className="right">
         <div className="preview">
           {state.form.itemIds.map((itemId) => {
-            const item = state.items[itemId]
-            if (!item) return null
+            const item = state.items[itemId];
+            if (!item) return null;
             return <PreviewItem item={item} key={itemId} />;
           })}
         </div>
-        <div className="histories">
-          <div>
-            <Button onClick={undo}>
-              <ArrowLeftOutlined />
-              Undo
-            </Button>
-          </div>
-          {histories.map((history: any, index: number) => {
-            return (
-              <div key={index}>
-                <b>{history.name}</b>
-                <br />
-                <small>{JSON.stringify(history.payload)}</small>
-              </div>
-            );
-          })}
-        </div>
+        <HistoryUI />
       </div>
     </div>
   );
