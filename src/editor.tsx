@@ -183,16 +183,16 @@ export class EditorClass extends React.Component<{}, State> {
 
 const useStoreWriter = () => {
   const dispatch = useDispatch();
-  const invoke = async (action: Command, ...args: any) => {
+  const invoke = useCallback(async (action: Command, ...args: any) => {
     const name = action.name;
     const payload = await action.invoke(...args);
     dispatch(
-      historyActions.pushHistory({
+      historyActions.stack({
         name,
         payload,
       })
     );
-  };
+  }, [dispatch]);
 
   return { invoke };
 };
@@ -205,7 +205,7 @@ const useStoreHistory = () => {
 
   const undo = () => {
     const history = undoStack[undoStack.length - 1];
-    dispatch(historyActions.popHistory());
+    dispatch(historyActions.undo());
     if (!history) return;
     const cmd = undoCommands[history.name];
     if (cmd) cmd.undo(history.payload);
@@ -236,7 +236,6 @@ const HistoryStack: React.FC<{
 
 const HistoryUI = () => {
   const { undoStack, redoStack, undo, redo } = useStoreHistory();
-  console.log(undoStack, redoStack, redoStack.length)
   return (
     <div className="histories">
       <div>
@@ -271,11 +270,11 @@ export const Editor: React.FC<{
   const updateItem = useCallback((item: Item, content: any) => {
     const cmd = new updateItemCommand();
     invoke(cmd, item, content);
-  }, []);
+  }, [invoke]);
   const deleteItem = useCallback((item: Item) => {
     const cmd = new deleteItemCommand();
     invoke(cmd, item);
-  }, []);
+  }, [invoke]);
 
   return (
     <div className="container">

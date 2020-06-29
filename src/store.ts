@@ -18,11 +18,11 @@ const historySlice = createSlice({
   name: 'history',
   initialState,
   reducers: {
-    pushHistory(state, action: PayloadAction<StoreHistory>) {
+    stack(state, action: PayloadAction<StoreHistory>) {
       state.undoStack.push(action.payload)
       state.redoStack = []
     },
-    popHistory(state) {
+    undo(state) {
       const stack = state.undoStack.pop()
       if (!stack) return
       state.redoStack.push(stack!)
